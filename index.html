@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Our Dates</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0; padding: 0;
+  }
+  .navbar {
+    background-color: #e6942a;
+    padding: 10px 20px;
+  }
+  .navbar a {
+    color: #ecf0f1;
+    font-weight: bold;
+    text-decoration: none;
+  }
+  main {
+    padding: 20px;
+  }
+  h1 {
+    text-align: center;
+    color: #ff6f3c; /* sunset orange */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    font-weight: 900;
+    margin: 0;
+  }
+  .heart {
+    color: white;
+    font-size: 2.5rem;
+    user-select: none;
+    line-height: 1;
+  }
+  #map {
+    height: 80vh;
+    width: 100%;
+    margin-top: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.2);
+  }
+  .popup-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 220px;
+  }
+  .popup-form input,
+  .popup-form textarea {
+    width: 100%;
+    padding: 5px;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+  }
+  .popup-buttons {
+    display: flex;
+    justify-content: space-between;
+  }
+  .popup-buttons button {
+    background-color: #ff6f3c;
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.9rem;
+  }
+  .popup-buttons button.delete-btn {
+    background-color: #e94e3a;
+  }
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="#" class="active">Intellectual Property of Cassidy Brookland and Sidney McMillan</a>
+</nav>
+
+<main>
+  <h1>Our Dates <span class="heart">♥</span></h1>
+  <p style="text-align:center;">A map of all the dates we have been on and my favorite memory from it.</p>
+
+  <div id="map"></div>
+</main>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+  var map = L.map('map').setView([-36.8485, 174.7633], 11);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const markers = [];
+
+  // Initial locations
+  const locations = [
+    {
+      lat: -36.8262,
+      lng: 174.8122,
+      title: "North Head Summit 🌄",
+      clue: "Our very first date where I had to leave to organise my draws and provided absolutely no geo catches so here’s a whole website just for you to make up for it xo"
+    },
+    {
+      lat: -36.8770,
+      lng: 174.7690,
+      title: "Stardome Observatory 🌌",
+      clue: "Second date - Favorite fact is Matariki is not just one star but a cluster of stars called the Pleiades"
+    },
+    {
+      lat: -36.7917,
+      lng: 174.7730,
+      title: "Milford Beach 🌊",
+      clue: "Third date — cold swim and stingray!!!"
+    }
+  ];
+
+  function addMarker(lat, lng, title, date, clue) {
+    const id = `marker-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`;
+    const marker = L.marker([lat, lng]).addTo(map);
+    let popupContent = `<b>${title}</b>`;
+    if (date) popupContent += `<br><b>Date:</b> ${date}`;
+    popupContent += `<br>${clue}<br>`;
+    popupContent += `<button class="delete-btn" onclick="confirmDelete('${id}')">Delete</button>`;
+
+    marker.bindPopup(popupContent);
+    marker._id = id;
+    markers.push(marker);
+  }
+
+  // Add initial markers
+  locations.forEach(loc => addMarker(loc.lat, loc.lng, loc.title, null, loc.clue));
+
+  window.deleteMarker = function(id) {
+    const idx = markers.findIndex(m => m._id === id);
+    if (idx !== -1) {
+      map.removeLayer(markers[idx]);
+      markers.splice(idx, 1);
+    }
+  };
+
+  window.confirmDelete = function(id) {
+    if (confirm("Are you sure you want to delete?")) {
+      deleteMarker(id);
+    }
+  };
+
+  map.on('click', function(e) {
+    // Popup form anchored on clicked location
+    const formPopup = L.popup()
+      .setLatLng(e.latlng)
+      .setContent(`
+        <form id="dateForm" class="popup-form">
+          <label>Title:</label>
+          <input type="text" id="title" required placeholder="Place or event" />
+          <label>Date:</label>
+          <input type="date" id="date" required />
+          <label>Details / Memory:</label>
+          <textarea id="clue" required placeholder="Your favorite memory..."></textarea>
+          <div class="popup-buttons">
+            <button type="submit">Add</button>
+            <button type="button" id="cancelBtn">Cancel</button>
+          </div>
+        </form>
+      `)
+      .openOn(map);
+
+    // Wait for DOM to be ready inside the popup
+    setTimeout(() => {
+      const form = document.getElementById('dateForm');
+      const cancelBtn = document.getElementById('cancelBtn');
+
+      cancelBtn.onclick = () => {
+        map.closePopup(formPopup);
+      };
+
+      form.onsubmit = (event) => {
+        event.preventDefault();
+
+        const title = form.querySelector('#title').value.trim();
+        const date = form.querySelector('#date').value;
+        const clue = form.querySelector('#clue').value.trim();
+
+        if (!title || !date || !clue) {
+          alert('Please fill all fields!');
+          return;
+        }
+
+        addMarker(e.latlng.lat, e.latlng.lng, title, date, clue);
+        map.closePopup(formPopup);
+      };
+    }, 10);
+  });
+</script>
+</body>
+</html>
